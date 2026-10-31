@@ -799,10 +799,9 @@ SNS投稿は #BPMったー
             const volNumLines = volNumRaw.split('\n');
             const titleLines = volTitleRaw.split('\n');
 
-            // 【修正部分】プレビューと同じ縦長変形倍率 (1.5倍) に合わせ、元のエリア幅のまま自然に収まるよう調整
-            const vScaleY = 1.5; 
-            const scaledVnFontSize = Math.round(vnBaseSize / vScaleY);
-            ctx.font = `900 ${scaledVnFontSize}px "Inter", sans-serif`;
+            // 【完全一致修正】プレビューの scale-y-150 (1.5倍) に合わせた正確な横幅計測
+            const vScaleY = 1.5;
+            ctx.font = `900 ${vnBaseSize}px "Inter", sans-serif`;
             let unscaledMaxVnW = 0;
             volNumLines.forEach(l => {
                 const w = ctx.measureText(l).width;
@@ -816,7 +815,8 @@ SNS投稿は #BPMったー
                 if (w > maxTitleLineWidth) maxTitleLineWidth = w;
             });
 
-            const volAreaWidth = Math.max(90, unscaledMaxVnW + 30); // 元の幅（90pxベース）を完全維持
+            // プレビューのFlexboxパディング（px-2py-1 = 左右合計16px相当＋ゆとり）に完全同期させた幅計算
+            const volAreaWidth = Math.max(90, unscaledMaxVnW + 35);
             const titleAreaWidth = maxTitleLineWidth + 30;
             
             const maxBoxWidth = 680;
@@ -856,101 +856,3 @@ SNS投稿は #BPMったー
                 for (let i = 0; i < line.length; i++) {
                     const char = line[i];
                     if (['、', '。'].includes(char)) {
-                        ctx.fillText(char, currentX + (pSize * 0.4), currentY - (pSize * 0.3));
-                    } else if (['ー', '―', '-'].includes(char)) {
-                        ctx.save();
-                        ctx.translate(currentX + (pSize * 0.5), currentY + (pSize * 0.5));
-                        ctx.rotate(Math.PI / 2);
-                        ctx.fillText(char, 0, 0);
-                        ctx.restore();
-                    } else {
-                        ctx.fillText(char, currentX, currentY);
-                    }
-                    currentY += charHeight;
-                }
-            });
-
-            // 4-1. 外枠
-            ctx.strokeStyle = textColor;
-            ctx.lineWidth = 6;
-            ctx.strokeRect(boxX, boxY, computedBoxWidth, computedHeight);
-
-            // 4-2. 区切り縦線
-            const dividerX = boxX + volAreaWidth;
-            ctx.beginPath();
-            ctx.moveTo(dividerX, boxY);
-            ctx.lineTo(dividerX, boxY + computedHeight);
-            ctx.stroke();
-
-            // 4-3. 巻数の縦長変形描画（vScaleY = 1.5 でプレビューと完全一致）
-            const vnLineHeight = Math.round((computedHeight - 16) / Math.max(1, volNumLines.length));
-
-            ctx.save();
-            ctx.translate(boxX + (volAreaWidth / 2), boxY + (computedHeight / 2));
-            ctx.scale(1.0, vScaleY);
-            ctx.fillStyle = textColor;
-            ctx.font = `900 ${scaledVnFontSize}px "Inter", sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            const startVnUnscaledY = -((volNumLines.length - 1) * (vnLineHeight / vScaleY)) / 2;
-            volNumLines.forEach((line, index) => {
-                const lineY = startVnUnscaledY + (index * (vnLineHeight / vScaleY));
-                ctx.fillText(line, 0, lineY);
-            });
-            ctx.restore();
-
-            // 4-4. タイトル描画
-            ctx.fillStyle = textColor;
-            ctx.font = `800 ${tBaseSize}px "Inter", sans-serif`;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-
-            const titleStartX = dividerX + 15;
-            const startTitleY = boxY + (computedHeight / 2) - (titleBlockHeight / 2) + (tLineHeight / 2);
-
-            titleLines.forEach((tLine, index) => {
-                const lineY = startTitleY + (index * tLineHeight);
-                ctx.fillText(tLine, titleStartX, lineY);
-            });
-
-            // 5. 作者名枠
-            const authorBoxWidth = 240;
-            const aSize = 19;
-            const authorBoxHeight = aSize + 20;
-            const authorBoxX = (width - authorBoxWidth) / 2;
-            const authorBoxY = boxY + computedHeight + 28;
-
-            ctx.strokeStyle = textColor;
-            ctx.lineWidth = 6;
-            ctx.strokeRect(authorBoxX, authorBoxY, authorBoxWidth, authorBoxHeight);
-
-            ctx.font = `800 ${aSize}px "Inter", sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(author, width / 2, authorBoxY + (authorBoxHeight / 2));
-            ctx.textAlign = 'left';
-        }
-
-        let overlayTimer = null;
-        function updateOverlayImage() {
-            clearTimeout(overlayTimer);
-            overlayTimer = setTimeout(() => {
-                renderCardToCanvas((canvas) => {
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-                    document.getElementById('longPressOverlay').src = dataUrl;
-                });
-            }, 100);
-        }
-
-        function downloadImage() {
-            renderCardToCanvas((canvas) => {
-                const link = document.createElement('a');
-                link.download = `bleach_poem_${Date.now()}.jpg`;
-                link.href = canvas.toDataURL('image/jpeg', 0.95);
-                link.click();
-            });
-        }
-    </script>
-</body>
-</html>
