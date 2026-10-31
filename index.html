@@ -799,8 +799,8 @@ SNS投稿は #BPMったー
             const volNumLines = volNumRaw.split('\n');
             const titleLines = volTitleRaw.split('\n');
 
-            // 【修正部分】縮小・引き伸ばし後のフォントサイズで横幅を正しく計測し、巻数エリアの潰れを解消
-            const vScaleY = 2.2;
+            // 【修正部分】プレビューと同じ縦長変形倍率 (1.5倍) に合わせ、元のエリア幅のまま自然に収まるよう調整
+            const vScaleY = 1.5; 
             const scaledVnFontSize = Math.round(vnBaseSize / vScaleY);
             ctx.font = `900 ${scaledVnFontSize}px "Inter", sans-serif`;
             let unscaledMaxVnW = 0;
@@ -816,7 +816,7 @@ SNS投稿は #BPMったー
                 if (w > maxTitleLineWidth) maxTitleLineWidth = w;
             });
 
-            const volAreaWidth = Math.max(140, unscaledMaxVnW + 50);
+            const volAreaWidth = Math.max(90, unscaledMaxVnW + 30); // 元の幅（90pxベース）を完全維持
             const titleAreaWidth = maxTitleLineWidth + 30;
             
             const maxBoxWidth = 680;
@@ -882,7 +882,7 @@ SNS投稿は #BPMったー
             ctx.lineTo(dividerX, boxY + computedHeight);
             ctx.stroke();
 
-            // 4-3. 巻数の縦長変形描画
+            // 4-3. 巻数の縦長変形描画（vScaleY = 1.5 でプレビューと完全一致）
             const vnLineHeight = Math.round((computedHeight - 16) / Math.max(1, volNumLines.length));
 
             ctx.save();
