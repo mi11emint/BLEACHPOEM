@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;900&family=Noto+Serif+JP:wght@400;700;900&family=Shippori+Mincho:wght@500;700;800&display=swap" rel="stylesheet">
-    <!-- html2canvas: DOMをそのまま完璧に高解像度画像化するライブラリ -->
+    <!-- html2canvas: プレビューをそのまま完璧に高解像度画像化するライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* 縦書きモード指定 */
@@ -141,19 +141,19 @@
 
                     <!-- ② 巻数＆詩タイトル枠 ＆ 作者名枠 -->
                     <div class="pt-0.5 flex flex-col items-center gap-1.5 font-sans">
-                        <div id="previewTitleBorder" class="border-[3px] border-black flex items-stretch max-w-full min-h-[54px] overflow-hidden">
-                            <!-- 巻数表示エリア（縦長拡大） -->
-                            <div class="px-2 py-1 flex items-center justify-center shrink-0 border-r-[3px] border-black overflow-hidden" id="previewDivider">
-                                <div id="previewVolNum" class="font-black leading-none whitespace-pre-line text-center origin-center transform scale-y-150">BLEACH&#10;#1</div>
+                        <div id="previewTitleBorder" class="border-[3px] border-black flex items-stretch max-w-full overflow-hidden">
+                            <!-- 巻数表示エリア（行間・隙間をタイトルと完全一致） -->
+                            <div class="px-2.5 py-2.5 flex items-center justify-center shrink-0 border-r-[3px] border-black overflow-hidden" id="previewDivider">
+                                <div id="previewVolNum" class="font-black leading-tight whitespace-pre-line text-center origin-center transform scale-y-150">BLEACH&#10;#1</div>
                             </div>
                             <!-- タイトル表示エリア -->
-                            <div class="p-1.5 flex flex-col justify-center shrink-0 overflow-hidden">
+                            <div class="px-2.5 py-2 flex flex-col justify-center shrink-0 overflow-hidden">
                                 <div id="previewVolTitle" class="font-extrabold uppercase tracking-wider leading-tight whitespace-pre text-xs">THE BIRTH&#10;AND THE&#10;GROUNDCHERRY</div>
                             </div>
                         </div>
                         
-                        <!-- 下部の作者名枠 -->
-                        <div id="previewAuthorBorder" class="border-[3px] border-black px-2 py-0.5 flex items-center justify-center font-extrabold tracking-widest max-w-[130px] sm:max-w-[145px] min-h-[26px]">
+                        <!-- 下部の作者名枠（フォントサイズ8pxに修正） -->
+                        <div id="previewAuthorBorder" class="border-[3px] border-black px-2.5 py-1 flex items-center justify-center font-extrabold tracking-widest max-w-[130px] sm:max-w-[145px]">
                             <span id="previewAuthor" class="font-bold uppercase tracking-wider text-center leading-tight break-words text-[8px]">BLEACH POEM MAKER</span>
                         </div>
                     </div>
@@ -448,7 +448,7 @@ SNS投稿は #BPMったー
             if (box && box.clientWidth && box.clientHeight) {
                 return box.clientWidth / box.clientHeight;
             }
-            return 340 / 56;
+            return 380 / 60; // デフォルトのプレビュー表示枠比率に一致
         }
 
         let boxNorm = { x: 0, y: 0, w: 1, h: 1 };
@@ -532,12 +532,23 @@ SNS投稿は #BPMったー
             reader.readAsDataURL(file);
         }
 
+        // 【修正④】初期トリミング枠のサイズをプレビューの枠のサイズ比率に完全に一致させる
         function resetBoxNorm() {
-            const aspect = getPreviewAspect();
-            boxNorm.w = 0.9;
-            boxNorm.h = boxNorm.w / aspect;
-            boxNorm.x = (1 - boxNorm.w) / 2;
-            boxNorm.y = (1 - boxNorm.h) / 2;
+            if (!rawImageObj) return;
+            const aspect = getPreviewAspect(); // プレビュー枠の正確な比率
+            const imgAspect = rawImageObj.width / rawImageObj.height;
+
+            if (imgAspect > aspect) {
+                boxNorm.h = 1;
+                boxNorm.w = aspect / imgAspect;
+                boxNorm.x = (1 - boxNorm.w) / 2;
+                boxNorm.y = 0;
+            } else {
+                boxNorm.w = 1;
+                boxNorm.h = imgAspect / aspect;
+                boxNorm.x = 0;
+                boxNorm.y = (1 - boxNorm.h) / 2;
+            }
         }
 
         function initCropBox() {
@@ -736,16 +747,18 @@ SNS投稿は #BPMったー
             });
         }
 
-        // html2canvasにより、画面上のDOM(#poemCard)をそのままキャプチャして高精度画像化する処理
+        // =========================================================================
+        // 【修正①〜③対応】html2canvasを用いたプレビュー完全同期の画像生成エンジン
+        // =========================================================================
         function renderCardToCanvas(callback) {
             const targetElement = document.getElementById('poemCard');
             const overlay = document.getElementById('longPressOverlay');
 
-            // キャプチャ時、長押し用透明オーバーレイを一時隠して干渉を排除
+            // キャプチャ時、長押し用オーバーレイを非表示にして干渉を排除
             overlay.style.display = 'none';
 
             html2canvas(targetElement, {
-                scale: 3, // 3倍解像度でキャプチャし高精細画像（SNS投稿等に最適な画質）を保持
+                scale: 3, // 高精細画質
                 useCORS: true,
                 backgroundColor: currentTheme === 'dark' ? '#000000' : '#ffffff',
                 logging: false
