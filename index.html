@@ -28,14 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;900&family=Noto+Serif+JP:wght@400;700;900&family=Shippori+Mincho:wght@500;700;800&display=swap" rel="stylesheet">
-    <!-- html2canvas: プレビューをそのまま完璧に高解像度画像化するライブラリ -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        /* 縦書きモード指定 */
-        .writing-vertical {
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-        }
         /* カスタムスクロールバー */
         ::-webkit-scrollbar {
             width: 5px;
@@ -48,7 +41,7 @@
             background: #3f3f46;
             border-radius: 3px;
         }
-        /* ポエムカードのスマホフィット */
+        /* ポエムカードキャンバスのスマホフィット */
         .poem-card-container {
             width: 100%;
             max-width: 380px;
@@ -120,48 +113,12 @@
                 </div>
             </div>
 
-            <!-- BLEACH巻頭風ポエムカード本体 (プレビュー) -->
+            <!-- BLEACH巻頭風ポエムカード本体 (フルCanvas描画システム) -->
             <div id="previewWrapper" class="w-full flex flex-col items-center py-1 transition-all duration-300 overflow-hidden">
-                <div id="poemCard" class="poem-card-container bg-white text-black p-4 sm:p-5 transition-colors duration-300 shadow-2xl rounded-sm flex flex-col justify-between border border-zinc-800 relative select-none">
-                    
-                    <!-- ① 横長モノクロ画像表示枠 -->
-                    <div id="imageDisplayBox" onclick="handleImageDisplayClick()" class="w-full h-14 sm:h-16 bg-zinc-900 relative overflow-hidden flex items-center justify-center border border-zinc-800/50 cursor-pointer group z-0">
-                        <img id="previewImg" src="" alt="ポエム用画像" class="absolute inset-0 w-full h-full object-cover hidden pointer-events-none transition-all">
-                        <div id="imgPlaceholder" class="text-zinc-400 text-[11px] text-center px-2 flex items-center gap-1 group-hover:text-zinc-200">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                            タップして画像を選択・編集
-                        </div>
-                    </div>
-
-                    <!-- 縦書きポエムテキスト領域 -->
-                    <div class="my-1.5 flex-1 flex justify-center items-center min-h-[170px] py-1 overflow-hidden">
-                        <div id="previewPoem" class="writing-vertical font-serif tracking-[0.2em] leading-[2em] max-h-[250px] flex flex-row-reverse flex-wrap items-center justify-center whitespace-pre-wrap">
-                        </div>
-                    </div>
-
-                    <!-- ② 巻数＆詩タイトル枠 ＆ 作者名枠 -->
-                    <div class="pt-0.5 flex flex-col items-center gap-1.5 font-sans">
-                        <div id="previewTitleBorder" class="border-[3px] border-black flex items-stretch max-w-full overflow-hidden">
-                            <!-- 巻数表示エリア（行間・隙間をタイトルと完全一致） -->
-                            <div class="px-2.5 py-2.5 flex items-center justify-center shrink-0 border-r-[3px] border-black overflow-hidden" id="previewDivider">
-                                <div id="previewVolNum" class="font-black leading-tight whitespace-pre-line text-center origin-center transform scale-y-150">BLEACH&#10;#1</div>
-                            </div>
-                            <!-- タイトル表示エリア -->
-                            <div class="px-2.5 py-2 flex flex-col justify-center shrink-0 overflow-hidden">
-                                <div id="previewVolTitle" class="font-extrabold uppercase tracking-wider leading-tight whitespace-pre text-xs">THE BIRTH&#10;AND THE&#10;GROUNDCHERRY</div>
-                            </div>
-                        </div>
-                        
-                        <!-- 下部の作者名枠（フォントサイズ8pxに修正） -->
-                        <div id="previewAuthorBorder" class="border-[3px] border-black px-2.5 py-1 flex items-center justify-center font-extrabold tracking-widest max-w-[130px] sm:max-w-[145px]">
-                            <span id="previewAuthor" class="font-bold uppercase tracking-wider text-center leading-tight break-words text-[8px]">BLEACH POEM MAKER</span>
-                        </div>
-                    </div>
-
-                    <!-- 長押し保存用リアルタイムオーバーレイ画像 -->
-                    <img id="longPressOverlay" alt="Long press to save" class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer pointer-events-auto" title="長押しまたは右クリックで画像を保存">
+                <div class="poem-card-container relative select-none">
+                    <canvas id="mainCanvas" class="w-full h-full shadow-2xl rounded-sm border border-zinc-800 cursor-pointer block"></canvas>
                 </div>
-                <p id="previewHintText" class="text-[10px] text-zinc-500 text-center mt-1">※ プレビュー画像を長押し / 右クリックで直接保存も可能です</p>
+                <p id="previewHintText" class="text-[10px] text-zinc-500 text-center mt-1">※ 画像選択は上部枠をタップ / 長押し・右クリックで画像保存が可能です</p>
             </div>
         </section>
 
@@ -171,69 +128,80 @@
         <!-- 下部：2カラム編集パネル -->
         <section class="w-full grid grid-cols-1 md:grid-cols-2 gap-3 max-w-4xl mx-auto">
             
-            <!-- 1. 詩 (ポエム) 本文 ＆ フォントサイズ -->
+            <!-- 1. 詩 (ポエム) 本文 ＆ ヘッダー並び替え修正 -->
             <div class="bg-cardBg/90 border border-zinc-800 rounded-xl p-3 shadow-lg flex flex-col space-y-2">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xs font-semibold text-zinc-300">1. 詩本文入力</h3>
-                    <button onclick="applySamplePoem()" class="text-[11px] text-accentRed hover:text-rose-400 underline transition">
-                        サンプル適用
-                    </button>
+                <div class="flex justify-between items-center gap-2">
+                    <h3 class="text-xs font-semibold text-zinc-300 shrink-0">1. 詩本文入力</h3>
+                    
+                    <div class="flex items-center gap-2">
+                        <button onclick="applySamplePoem()" class="text-[11px] text-accentRed hover:text-rose-400 underline transition shrink-0">
+                            デフォルト変更
+                        </button>
+
+                        <!-- ドロップボックスをタイトルヘッダー右側に移動 -->
+                        <select id="poemFontSize" class="bg-zinc-900 border border-zinc-700 rounded text-[11px] text-zinc-200 px-1.5 py-0.5 focus:outline-none focus:border-accentRed" onchange="render()">
+                            <option value="8">極小 (8px)</option>
+                            <option value="10" selected>標準 (10px)</option>
+                            <option value="12">大 (12px)</option>
+                          <option value="100">特大 (13km)</option>
+                        </select>
+                    </div>
                 </div>
-                <label class="text-[10px] text-zinc-400">サンプル適用を押す度にデフォルトポエムが変わります  ⬆</label>
+                
                 <textarea id="poemInput" rows="4" placeholder="ここに詩を入力（改行で列変更）"
                     class="w-full flex-1 bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-accentRed transition leading-relaxed resize-none min-h-[85px]"
-                    oninput="updateControls()"></textarea>
-
-                <div class="pt-1.5 border-t border-zinc-800 flex items-center justify-between">
-                    <label class="text-[10px] text-zinc-400">詩のフォントサイズ</label>
-                    <select id="poemFontSize" class="bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-200 px-2 py-1 focus:outline-none focus:border-accentRed" onchange="updateControls()">
-                        <option value="12">小 (12px)</option>
-                        <option value="14" selected>標準 (14px)</option>
-                        <option value="16">大 (16px)</option>
-                        <option value="20">特大 (20px)</option>
-                    </select>
-                </div>
+                    oninput="render()"></textarea>
             </div>
 
-            <!-- 2. 巻数 & 詩タイトル（自由改行可）＆ サイズ調整 -->
+            <!-- 2. 巻数 & 詩タイトル（横並び入力 ＆ 左右スライダー） -->
             <div class="bg-cardBg/90 border border-zinc-800 rounded-xl p-3 shadow-lg flex flex-col justify-between space-y-2">
                 <h3 class="text-xs font-semibold text-zinc-300">2. 巻数＆詩タイトル入力</h3>
                 <div class="space-y-2">
-                    <div>
-                        <label class="block text-[10px] text-zinc-400 mb-0.5">作品名/巻数（改行可）</label>
-                        <textarea id="volNumInput" rows="2" placeholder="あなたの名前や作品名と巻数を入力"
-                            class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 focus:outline-none focus:border-accentRed resize-none min-h-[42px]"
-                            oninput="updateControls()">BLEACH
+                    
+                    <!-- 💡 横並び入力エリア -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-zinc-400 mb-0.5">作品名/巻数（改行可）</label>
+                            <textarea id="volNumInput" rows="3" placeholder="あなたの名前や作品名と巻数を入力"
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 focus:outline-none focus:border-accentRed resize-none min-h-[60px]"
+                                oninput="render()">BLEACH
 #1</textarea>
-                    </div>
+                        </div>
 
-                    <div>
-                        <label class="block text-[10px] text-zinc-400 mb-0.5">詩タイトル（改行可）</label>
-                        <textarea id="volTitleInput" rows="3" placeholder="  "
-                            class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 focus:outline-none focus:border-accentRed resize-none min-h-[60px]"
-                            oninput="updateControls()">THE BIRTH
+                        <div>
+                            <label class="block text-[10px] text-zinc-400 mb-0.5">詩タイトル（改行可）</label>
+                            <textarea id="volTitleInput" rows="3" placeholder="  "
+                                class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-100 focus:outline-none focus:border-accentRed resize-none min-h-[60px]"
+                                oninput="render()">THE BIRTH
 AND THE
 GROUNDCHERRY</textarea>
+                        </div>
                     </div>
 
-                    <div class="pt-1.5 border-t border-zinc-800 grid grid-cols-2 gap-2">
-                        <div class="flex flex-col gap-0.5">
-                            <label class="text-[10px] text-zinc-400">巻数サイズ</label>
-                            <select id="volNumFontSize" class="bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-200 px-1.5 py-1 focus:outline-none focus:border-accentRed" onchange="updateControls()">
-                                <option value="14">小 (14px)</option>
-                                <option value="18">標準 (18px)</option>
-                                <option value="22" selected>大 (22px)</option>
-                                <option value="30">特大 (30px)</option>
-                            </select>
+                    <!-- 🎛️ 左：巻数スライダー / 右：タイトルスライダー -->
+                    <div class="pt-2 border-t border-zinc-800/80 grid grid-cols-2 gap-x-3 gap-y-2">
+                        <!-- 左カラム：巻数関連 -->
+                        <div class="space-y-1.5 border-r border-zinc-800/80 pr-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[10px] text-zinc-400">下枠の縦幅</label>
+                                <input type="range" id="boxHeightScale" min="80" max="150" value="100" class="w-16 accent-rose-500 cursor-pointer" oninput="render()">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-[10px] text-zinc-400">巻数の行間</label>
+                                <input type="range" id="volLineSpacing" min="3" max="10" value="10" class="w-16 accent-rose-500 cursor-pointer" oninput="render()">
+                            </div>
                         </div>
-                        <div class="flex flex-col gap-0.5">
-                            <label class="text-[10px] text-zinc-400">タイトルサイズ</label>
-                            <select id="titleFontSize" class="bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-200 px-1.5 py-1 focus:outline-none focus:border-accentRed" onchange="updateControls()">
-                                <option value="10">小 (10px)</option>
-                                <option value="12">標準 (12px)</option>
-                                <option value="14">大 (14px)</option>
-                                <option value="18" selected>特大 (18px)</option>
-                            </select>
+
+                        <!-- 右カラム：タイトル関連 -->
+                        <div class="space-y-1.5 pl-1">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[10px] text-zinc-400">下枠の横幅</label>
+                                <input type="range" id="boxWidthScale" min="80" max="150" value="100" class="w-16 accent-rose-500 cursor-pointer" oninput="render()">
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-[10px] text-zinc-400">タイトルの行間</label>
+                                <input type="range" id="titleLineSpacing" min="3" max="10" value="10" class="w-16 accent-rose-500 cursor-pointer" oninput="render()">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -258,7 +226,7 @@ GROUNDCHERRY</textarea>
 BLEACH公式と関わりのない非公式のサイトです。
 公式様に迷惑をかけないよう遊んでください。
 作成した画像は、色をつけたり加工をしても構いません。
-
+              
 エモいオサレ詩以外にも
 今日の心からの気持ち
 誰かに声を当ててもらいたいセリフ
@@ -268,19 +236,18 @@ BLEACH公式と関わりのない非公式のサイトです。
 SNS投稿は #BPMったー
 
 <font color=red>【重要事項】
-
 ① 使用する画像や詩は、知的財産権侵害、著作権侵害、
    その他法律に抵触してはなりません。
-
-② このメーカーを政治的活動や扇動、ヘイトスピーチや
+② 商用利用は禁止です。
+③ このメーカーを政治的活動や扇動、ヘイトスピーチや
    誹謗中傷の為に使用することを禁じます。
 </font>🌾愛国心はOKです
               
 【CREDIT】 お名前タップでページ遷移
-<a href="https://x.com/srtm_azk01" target="_blank" rel="noopener" class="underline text-rose-400">白玉あずき様</a> 霞む視界── の詩をご提供頂きました！
+<a href="https://x.com/Koji4589" target="_blank" rel="noopener" class="underline text-rose-400">Koji I</a>様 足掻きとて── の短歌をご提供頂きました！
+<a href="https://x.com/srtm_azk01" target="_blank" rel="noopener" class="underline text-rose-400">白玉あずき</a>様 霞む視界── の詩をご提供頂きました！
 
-              
-サイト作者：<a href="https://lit.link/mi11emint" target="_blank" rel="noopener" class="underline text-rose-400">鳳月 眠人</a>
+【SITE AUTHOR】 <a href="https://lit.link/mi11emint" target="_blank" rel="noopener" class="underline text-rose-400">鳳月 眠人</a>
 2026年11月1日</div>
 
             <div class="pt-2 border-t border-zinc-800 flex justify-end">
@@ -298,7 +265,7 @@ SNS投稿は #BPMったー
                 <div class="flex items-center justify-between">
                     <h3 class="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
                         <svg class="w-4 h-4 text-accentRed" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        切り抜き範囲の指定
+                        切取範囲の指定
                     </h3>
                     <button onclick="closeCropModal()" class="text-zinc-400 hover:text-white p-1">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -316,7 +283,8 @@ SNS投稿は #BPMったー
                 </div>
             </div>
 
-            <p class="text-[10px] text-zinc-400 text-center">赤枠内をドラッグして移動 / 四隅の丸をドラッグしてサイズ変更</p>
+            <p class="text-[10px] text-zinc-400 text-center">赤枠内をドラッグして移動 / 四隅の丸をドラッグしてサイズ変更。
+            スクリーンショット等の大きい画像の場合、正しく切り取れないことがあります。</p>
 
             <div id="cropContainer" class="w-full relative bg-black overflow-hidden border border-zinc-800 rounded flex items-center justify-center touch-none">
                 <img id="cropImg" src="" alt="Crop target" class="w-full h-auto block pointer-events-none select-none filter grayscale">
@@ -343,21 +311,73 @@ SNS投稿は #BPMったー
             `漂白された心と
 脱色された日々に`,
 
+            `足掻きとて
+届かなかった
+我が牙を
+越ゆる為にて
+プライド捨てん`,
+          
             `霞む視界
 けぶる雨だと
 言い聞かせ`,
-          
+
             `すれ違う心に道標はなく
 見えもしない風の色が
 この漸近線を支配している`,
 
-            `明日から始めます。
-たぶん。知らんけど。`,
+            `明日から始めます
+たぶん 知らんけど`,
+
+`蓮は朽ち
+雪は融け`,
           
-            `蓮は散り
-雪は融け`
+            `廃人になるな
+目を逸らすな
+力は常に自分の中
+夜露を撥け　誇りをもて
+たった一つの魂を
+捨てるくらいなら生を撰べ`
         ];
         let currentSampleIndex = 0;
+
+        // Element references
+        const mainCanvas = document.getElementById('mainCanvas');
+        const ctx = mainCanvas.getContext('2d');
+
+        const poemInput = document.getElementById('poemInput');
+        const volNumInput = document.getElementById('volNumInput');
+        const volTitleInput = document.getElementById('volTitleInput');
+        
+        const poemFontSize = document.getElementById('poemFontSize');
+
+        const boxWidthScale = document.getElementById('boxWidthScale');
+        const boxHeightScale = document.getElementById('boxHeightScale');
+        const titleLineSpacing = document.getElementById('titleLineSpacing');
+        const volLineSpacing = document.getElementById('volLineSpacing');
+
+        const cropModal = document.getElementById('cropModal');
+        const cropContainer = document.getElementById('cropContainer');
+        const cropImg = document.getElementById('cropImg');
+        const cropBox = document.getElementById('cropBox');
+
+        window.onload = async () => {
+            poemInput.value = poemSamples[0];
+            volNumInput.value = "BEACH\n#1";
+            volTitleInput.value = "THE BIRTH\nAND THE\nGROUNDCHERRY";
+
+            // 高精細Canvasサイズ定義 (800x1200)
+            mainCanvas.width = 800;
+            mainCanvas.height = 1200;
+
+            setPreviewBg('light');
+            setupBoxCropInteractions();
+            setupCanvasClick();
+
+            if (document.fonts) {
+                await document.fonts.ready;
+            }
+            await render();
+        };
 
         // プレビューの折りたたみ・展開トグル関数
         function togglePreviewFold() {
@@ -391,15 +411,17 @@ SNS投稿は #BPMったー
                 volNum: volNumInput.value,
                 volTitle: volTitleInput.value,
                 poemFontSize: poemFontSize.value,
-                volNumFontSize: volNumFontSize.value,
-                titleFontSize: titleFontSize.value,
+                boxWidthScale: boxWidthScale ? boxWidthScale.value : "100",
+                boxHeightScale: boxHeightScale ? boxHeightScale.value : "100",
+                titleLineSpacing: titleLineSpacing ? titleLineSpacing.value : "10",
+                volLineSpacing: volLineSpacing ? volLineSpacing.value : "10",
                 theme: currentTheme,
                 croppedDataUrl: croppedDataUrl,
                 boxNorm: { ...boxNorm }
             };
             try {
                 localStorage.setItem('bleach_poem_user_draft', JSON.stringify(draftData));
-                alert("下書きを保存完了");
+                alert("下書を保存完了");
             } catch (e) {
                 console.error("下書きの保存に失敗", e);
                 alert("卍卍疋殺地蔵卍卍");
@@ -409,7 +431,7 @@ SNS投稿は #BPMったー
         function restoreDraft() {
             const saved = localStorage.getItem('bleach_poem_user_draft');
             if (!saved) {
-                alert("いつから保存済だと錯覚していた？");
+                alert("一体いつから　下書保存済だと錯覚していた？");
                 return;
             }
             try {
@@ -418,79 +440,27 @@ SNS投稿は #BPMったー
                 volNumInput.value = draftData.volNum;
                 volTitleInput.value = draftData.volTitle;
                 poemFontSize.value = draftData.poemFontSize;
-                volNumFontSize.value = draftData.volNumFontSize;
-                titleFontSize.value = draftData.titleFontSize;
+                if (draftData.boxWidthScale && boxWidthScale) boxWidthScale.value = draftData.boxWidthScale;
+                if (draftData.boxHeightScale && boxHeightScale) boxHeightScale.value = draftData.boxHeightScale;
+                if (draftData.titleLineSpacing && titleLineSpacing) titleLineSpacing.value = draftData.titleLineSpacing;
+                if (draftData.volLineSpacing && volLineSpacing) volLineSpacing.value = draftData.volLineSpacing;
                 setPreviewBg(draftData.theme);
 
-                if (draftData.croppedDataUrl) {
-                    croppedDataUrl = draftData.croppedDataUrl;
-                    previewImg.src = croppedDataUrl;
-                    previewImg.classList.remove('hidden');
-                    imgPlaceholder.classList.add('hidden');
-                } else {
-                    croppedDataUrl = null;
-                    previewImg.src = '';
-                    previewImg.classList.add('hidden');
-                    imgPlaceholder.classList.remove('hidden');
-                }
-                boxNorm = { ...draftData.boxNorm };
-                updateControls();
+                croppedDataUrl = draftData.croppedDataUrl || null;
+                boxNorm = draftData.boxNorm ? { ...draftData.boxNorm } : { x: 0, y: 0, w: 1, h: 1 };
+                render();
                 alert("下書きを復元完了");
             } catch (e) {
                 console.error("下書きの復元に失敗", e);
-                alert("下書きの復元中にエラーが発生");
+                alert("下書きの霊圧が消えた……！？");
             }
         }
 
-        // プレビュー表示枠の実際の比率（幅/高さ）を動的かつ正確に取得
         function getPreviewAspect() {
-            const box = document.getElementById('imageDisplayBox');
-            if (box && box.clientWidth && box.clientHeight) {
-                return box.clientWidth / box.clientHeight;
-            }
-            return 380 / 60; // デフォルトのプレビュー表示枠比率に一致
+            return 380 / 60; // アスペクト比 (680px : 107.37px)
         }
 
         let boxNorm = { x: 0, y: 0, w: 1, h: 1 };
-
-        const poemInput = document.getElementById('poemInput');
-        const volNumInput = document.getElementById('volNumInput');
-        const volTitleInput = document.getElementById('volTitleInput');
-        
-        const poemFontSize = document.getElementById('poemFontSize');
-        const volNumFontSize = document.getElementById('volNumFontSize');
-        const titleFontSize = document.getElementById('titleFontSize');
-
-        const previewPoem = document.getElementById('previewPoem');
-        const previewVolNum = document.getElementById('previewVolNum');
-        const previewVolTitle = document.getElementById('previewVolTitle');
-        const previewAuthor = document.getElementById('previewAuthor');
-        
-        const previewImg = document.getElementById('previewImg');
-        const imgPlaceholder = document.getElementById('imgPlaceholder');
-        const poemCard = document.getElementById('poemCard');
-        const previewTitleBorder = document.getElementById('previewTitleBorder');
-        const previewAuthorBorder = document.getElementById('previewAuthorBorder');
-        const previewDivider = document.getElementById('previewDivider');
-        const imageDisplayBox = document.getElementById('imageDisplayBox');
-
-        const cropModal = document.getElementById('cropModal');
-        const cropContainer = document.getElementById('cropContainer');
-        const cropImg = document.getElementById('cropImg');
-        const cropBox = document.getElementById('cropBox');
-
-        window.onload = () => {
-            poemInput.value = poemSamples[0];
-            volNumInput.value = "BLEACH\n#1";
-            volTitleInput.value = "THE BIRTH\nAND THE\nGROUNDCHERRY";
-            volNumFontSize.value = "22"; // 大
-            titleFontSize.value = "18";    // 特大
-
-            setPreviewBg('light');
-            updateControls();
-            setupBoxCropInteractions();
-            setupOverlayPointerEvents();
-        };
 
         function handleImageDisplayClick() {
             if (!rawImageObj) {
@@ -498,6 +468,16 @@ SNS投稿は #BPMったー
             } else {
                 openCropModal();
             }
+        }
+
+        function setupCanvasClick() {
+            mainCanvas.addEventListener('click', (e) => {
+                const rect = mainCanvas.getBoundingClientRect();
+                const clickY = ((e.clientY - rect.top) / rect.height) * 1200;
+                if (clickY <= 220) {
+                    handleImageDisplayClick();
+                }
+            });
         }
 
         function openCropModal() {
@@ -532,10 +512,9 @@ SNS投稿は #BPMったー
             reader.readAsDataURL(file);
         }
 
-        // 【修正④】初期トリミング枠のサイズをプレビューの枠のサイズ比率に完全に一致させる
         function resetBoxNorm() {
             if (!rawImageObj) return;
-            const aspect = getPreviewAspect(); // プレビュー枠の正確な比率
+            const aspect = getPreviewAspect();
             const imgAspect = rawImageObj.width / rawImageObj.height;
 
             if (imgAspect > aspect) {
@@ -659,6 +638,7 @@ SNS投稿は #BPMったー
             window.addEventListener('touchend', onEnd);
         }
 
+        // ズレバグ修正：画像の指定トリミング領域をそのまま抽出する処理
         function applyCrop() {
             if (!rawImageObj) return;
 
@@ -678,18 +658,14 @@ SNS投稿は #BPMったー
 
             croppedDataUrl = tempCanvas.toDataURL('image/png');
 
-            previewImg.src = croppedDataUrl;
-            previewImg.classList.remove('hidden');
-            imgPlaceholder.classList.add('hidden');
-
             closeCropModal();
-            updateControls();
+            render();
         }
 
         function applySamplePoem() {
             poemInput.value = poemSamples[currentSampleIndex];
             currentSampleIndex = (currentSampleIndex + 1) % poemSamples.length;
-            updateControls();
+            render();
         }
 
         function setPreviewBg(mode) {
@@ -698,97 +674,268 @@ SNS投稿は #BPMったー
             const btnLight = document.getElementById('btnBgLight');
 
             if (mode === 'dark') {
-                poemCard.style.backgroundColor = '#000000';
-                poemCard.style.color = '#ffffff';
-                previewTitleBorder.style.borderColor = '#ffffff';
-                previewDivider.style.borderColor = '#ffffff';
-                previewAuthorBorder.style.borderColor = '#ffffff';
-
                 btnDark.className = "px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-0.5 bg-zinc-700 text-white shadow-sm min-h-[36px]";
                 btnLight.className = "px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1 text-zinc-400 hover:text-white min-h-[36px]";
             } else {
-                poemCard.style.backgroundColor = '#ffffff';
-                poemCard.style.color = '#000000';
-                previewTitleBorder.style.borderColor = '#000000';
-                previewDivider.style.borderColor = '#000000';
-                previewAuthorBorder.style.borderColor = '#000000';
-
                 btnLight.className = "px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-1 bg-zinc-200 text-zinc-900 font-bold shadow-sm min-h-[36px]";
                 btnDark.className = "px-2.5 py-1 rounded-md text-[11px] font-bold transition flex items-center gap-0.5 text-zinc-400 hover:text-white min-h-[36px]";
             }
-            updateControls();
+            render();
         }
 
-        function updateControls() {
-            previewPoem.innerText = poemInput.value || " ";
-            previewVolNum.innerText = volNumInput.value || "";
-            previewVolTitle.innerText = volTitleInput.value || "";
-            previewAuthor.innerText = "BLEACH POEM MAKER";
+        // =========================================================================
+        // 【フルCanvasリアルタイムレンダリングエンジン】
+        // =========================================================================
+        async function render() {
+            const scale = mainCanvas.width / 380;
+            const pSize = Math.round(parseInt(poemFontSize.value) * scale * 1.5);
+            
+            if (document.fonts) {
+                const textToLoad = poemInput.value || " ";
+                try {
+                    await document.fonts.load(`500 ${pSize}px "Shippori Mincho"`, textToLoad);
+                } catch (e) {
+                    console.log("Font load fallback", e);
+                }
+            }
 
-            previewPoem.style.fontSize = `${poemFontSize.value}px`;
-            previewVolNum.style.fontSize = `${volNumFontSize.value}px`;
-            previewVolTitle.style.fontSize = `${titleFontSize.value}px`;
+            const width = mainCanvas.width;
+            const height = mainCanvas.height;
 
-            updateOverlayImage();
+            const isDark = currentTheme === 'dark';
+            const bgColor = isDark ? '#000000' : '#ffffff';
+            const textColor = isDark ? '#ffffff' : '#000000';
+
+            // 1. 全体背景描画
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. 上部モノクロ画像枠描画
+            const imgBoxX = 60;
+            const imgBoxY = 60;
+            const imgBoxWidth = width - 120; // 680px
+            const aspect = getPreviewAspect();
+            const imgBoxHeight = imgBoxWidth / aspect;
+
+            if (croppedDataUrl) {
+                const croppedImg = new Image();
+                croppedImg.onload = () => {
+                    // ズレバグ修正：トリミング済みの画像データをそのままぴったり画像枠全体に描画
+                    ctx.drawImage(croppedImg, 0, 0, croppedImg.width, croppedImg.height, imgBoxX, imgBoxY, imgBoxWidth, imgBoxHeight);
+                    ctx.strokeStyle = textColor;
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(imgBoxX, imgBoxY, imgBoxWidth, imgBoxHeight);
+
+                    renderContent(width, height, textColor, imgBoxHeight);
+                };
+                croppedImg.src = croppedDataUrl;
+            } else {
+                ctx.strokeStyle = isDark ? '#333333' : '#cccccc';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(imgBoxX, imgBoxY, imgBoxWidth, imgBoxHeight);
+
+                ctx.fillStyle = isDark ? '#666666' : '#999999';
+                ctx.font = 'bold 24px "Inter", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('＋ タップして画像を選択・編集', width / 2, imgBoxY + (imgBoxHeight / 2));
+
+                renderContent(width, height, textColor, imgBoxHeight);
+            }
         }
 
-        function setupOverlayPointerEvents() {
-            const overlay = document.getElementById('longPressOverlay');
-            overlay.addEventListener('click', (e) => {
-                const rect = imageDisplayBox.getBoundingClientRect();
-                if (
-                    e.clientX >= rect.left &&
-                    e.clientX <= rect.right &&
-                    e.clientY >= rect.top &&
-                    e.clientY <= rect.bottom
-                ) {
-                    handleImageDisplayClick();
+        function renderContent(width, height, textColor, imgBoxHeight) {
+            const scale = width / 380;
+
+            const volNumRaw = volNumInput.value || "";
+            const volTitleRaw = (volTitleInput.value || "").toUpperCase();
+            const author = "OPENING PAGE　■POEM MAKER ■";
+
+            const volNumLines = volNumRaw.split('\n');
+            const titleLines = volTitleRaw.split('\n');
+
+            // --- 精密余白設定 ---
+            const sideMargin = 2; // タイトルの左右余白: 2px
+            const volSideMargin = 1; // 巻数と枠内仕切り線の余白: 1px
+            const innerMargin = 2; // 外枠と内側コンテンツの隙間: 2px
+
+            // --- スライダー倍率の取得 ---
+            const widthMult = boxWidthScale ? (parseInt(boxWidthScale.value) / 100) : 1.0;
+            const heightMult = boxHeightScale ? (parseInt(boxHeightScale.value) / 100) : 1.0;
+
+            const userTitleLineSpacingRatio = titleLineSpacing ? Math.max(0.85, parseInt(titleLineSpacing.value) / 10) : 1.0;
+            const userVnLineSpacingRatio = volLineSpacing ? Math.max(0.7, parseInt(volLineSpacing.value) / 10) : 1.0;
+
+            // --- A. 下枠自体の可変サイズ決定 ---
+            const baseTopBlockHeight = 115 * heightMult;
+            const topBlockHeight = baseTopBlockHeight;
+
+            const baseVolAreaW = 140 * widthMult;
+            const volAreaW = baseVolAreaW;
+
+            // タイトル文字サイズの自動算出
+            const tBaseSize = Math.max(10, Math.floor((topBlockHeight - (sideMargin * 2)) / (titleLines.length * userTitleLineSpacingRatio)));
+            
+            ctx.font = `800 ${tBaseSize}px "Inter", sans-serif`;
+            let maxTitleW = 0;
+            titleLines.forEach(l => {
+                const w = ctx.measureText(l).width;
+                if (w > maxTitleW) maxTitleW = w;
+            });
+            
+            const titleAreaW = Math.max(120, maxTitleW + (sideMargin * 2));
+
+            const dividerThick = 4;
+            const contentWidth = volAreaW + dividerThick + titleAreaW;
+            const outerBoxWidth = contentWidth + (innerMargin * 2);
+            const outerBoxX = (width - outerBoxWidth) / 2;
+
+            // 作者名サイズの自動調整
+            let aSize = Math.round(tBaseSize * 0.7);
+            ctx.font = `800 ${aSize}px "Inter", sans-serif`;
+            const authorTextW = ctx.measureText(author).width;
+            const maxAllowedAuthorW = outerBoxWidth - (sideMargin * 2);
+            if (authorTextW > maxAllowedAuthorW) {
+                aSize = Math.max(8, Math.floor(aSize * (maxAllowedAuthorW / authorTextW)));
+            }
+
+            const authorAreaHeight = Math.max(20, aSize + (sideMargin * 2));
+            const outerBoxHeight = topBlockHeight + dividerThick + authorAreaHeight + (innerMargin * 2);
+            const outerBoxY = height - outerBoxHeight - 80;
+
+            // --- B. 縦書きポエムテキスト描画 ---
+            const pSize = Math.round(parseInt(poemFontSize.value) * scale * 1.5);
+            ctx.font = `500 ${pSize}px "Shippori Mincho", "Noto Serif JP", serif`;
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = textColor;
+
+            const lines = (poemInput.value || " ").split('\n');
+            const lineSpacing = pSize * 2.0; 
+            const charHeight = pSize * 1.2;
+
+            const totalPoemWidth = (lines.length - 1) * lineSpacing;
+            const startX = (width / 2) + (totalPoemWidth / 2);
+
+            const maxCharsInLine = Math.max(...lines.map(l => l.length));
+            const totalPoemHeight = maxCharsInLine * charHeight;
+
+            const poemAreaTop = 60 + imgBoxHeight;
+            const poemAreaBottom = outerBoxY;
+            const poemAreaCenterY = poemAreaTop + (poemAreaBottom - poemAreaTop) / 2;
+            const startY = poemAreaCenterY - (totalPoemHeight / 2);
+
+            lines.forEach((line, lineIndex) => {
+                const currentX = startX - (lineIndex * lineSpacing);
+                let currentY = startY;
+
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (['、', '。'].includes(char)) {
+                        ctx.fillText(char, currentX + (pSize * 0.4), currentY - (pSize * 0.3));
+                    } else if (['ー', '―', '-'].includes(char)) {
+                        ctx.save();
+                        ctx.translate(currentX + (pSize * 0.5), currentY + (pSize * 0.5));
+                        ctx.rotate(Math.PI / 2);
+                        ctx.fillText(char, 0, 0);
+                        ctx.restore();
+                    } else {
+                        ctx.fillText(char, currentX, currentY);
+                    }
+                    currentY += charHeight;
                 }
             });
-        }
 
-        // =========================================================================
-        // 【修正①〜③対応】html2canvasを用いたプレビュー完全同期の画像生成エンジン
-        // =========================================================================
-        function renderCardToCanvas(callback) {
-            const targetElement = document.getElementById('poemCard');
-            const overlay = document.getElementById('longPressOverlay');
+            // --- C. 太い外枠の描画（太さ：8px） ---
+            const borderThick = 8;
+            ctx.strokeStyle = textColor;
+            ctx.lineWidth = borderThick;
+            ctx.strokeRect(outerBoxX, outerBoxY, outerBoxWidth, outerBoxHeight);
 
-            // キャプチャ時、長押し用オーバーレイを非表示にして干渉を排除
-            overlay.style.display = 'none';
+            const innerX = outerBoxX + innerMargin;
+            const innerY = outerBoxY + innerMargin;
+            const innerW = outerBoxWidth - (innerMargin * 2);
 
-            html2canvas(targetElement, {
-                scale: 3, // 高精細画質
-                useCORS: true,
-                backgroundColor: currentTheme === 'dark' ? '#000000' : '#ffffff',
-                logging: false
-            }).then(canvas => {
-                overlay.style.display = 'block';
-                if (callback) callback(canvas);
-            }).catch(err => {
-                overlay.style.display = 'block';
-                console.error("キャプチャエラー:", err);
+            // --- D. 枠につかない仕切り線（太さ：4px） ---
+            ctx.fillStyle = textColor;
+
+            // 1. 横仕切り線（作者名の上）
+            const horizLineY = innerY + topBlockHeight;
+            ctx.fillRect(innerX, horizLineY, innerW, dividerThick);
+
+            // 2. 縦仕切り線（巻数とタイトルの間）
+            const dividerX = innerX + volAreaW;
+            ctx.fillRect(dividerX, innerY + 1, dividerThick, topBlockHeight - 2);
+
+            // --- E. 巻数描画 ---
+            const targetVolW = volAreaW - (volSideMargin * 2);
+            const targetVolH = topBlockHeight - (sideMargin * 2);
+
+            let testFontSize = 30;
+            ctx.font = `900 ${testFontSize}px "Inter", sans-serif`;
+            let maxVnTextW = 0;
+            volNumLines.forEach(l => {
+                const w = ctx.measureText(l).width;
+                if (w > maxVnTextW) maxVnTextW = w;
             });
+
+            const unscaledTotalH = volNumLines.length * (testFontSize * userVnLineSpacingRatio);
+
+            const scaleX = maxVnTextW > 0 ? (targetVolW / maxVnTextW) : 1.0;
+            const scaleY = unscaledTotalH > 0 ? Math.min(targetVolH / unscaledTotalH, (topBlockHeight - (sideMargin * 2)) / unscaledTotalH) : 1.0;
+
+            const volCenterX = innerX + (volAreaW / 2);
+            const volCenterY = innerY + (topBlockHeight / 2);
+
+            ctx.save();
+            ctx.translate(volCenterX, volCenterY);
+            ctx.scale(scaleX, scaleY);
+            ctx.fillStyle = textColor;
+            ctx.font = `900 ${testFontSize}px "Inter", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const activeVnLineHeight = testFontSize * userVnLineSpacingRatio;
+            const startVnUnscaledY = - (unscaledTotalH / 2) + (activeVnLineHeight / 2);
+
+            volNumLines.forEach((line, index) => {
+                const lineY = startVnUnscaledY + (index * activeVnLineHeight);
+                ctx.fillText(line, 0, lineY);
+            });
+            ctx.restore();
+
+            // --- F. タイトル描画 ---
+            ctx.fillStyle = textColor;
+            ctx.font = `800 ${tBaseSize}px "Inter", sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+
+            const titleStartX = dividerX + dividerThick + sideMargin;
+            const activeTLineHeight = tBaseSize * userTitleLineSpacingRatio;
+            const totalActualTitleHeight = titleLines.length * activeTLineHeight;
+            
+            const startTitleY = innerY + ((topBlockHeight - totalActualTitleHeight) / 2);
+
+            titleLines.forEach((tLine, index) => {
+                const lineY = startTitleY + (index * activeTLineHeight);
+                ctx.fillText(tLine, titleStartX, lineY);
+            });
+
+            // --- G. 作者名描画（下段エリア） ---
+            const authorY = horizLineY + dividerThick + ((outerBoxY + outerBoxHeight - (horizLineY + dividerThick)) / 2);
+
+            ctx.font = `800 ${aSize}px "Inter", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(author, outerBoxX + (outerBoxWidth / 2), authorY);
+            ctx.textAlign = 'left';
         }
 
-        let overlayTimer = null;
-        function updateOverlayImage() {
-            clearTimeout(overlayTimer);
-            overlayTimer = setTimeout(() => {
-                renderCardToCanvas((canvas) => {
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-                    document.getElementById('longPressOverlay').src = dataUrl;
-                });
-            }, 150);
-        }
-
+        // 保存ボタン処理
         function downloadImage() {
-            renderCardToCanvas((canvas) => {
-                const link = document.createElement('a');
-                link.download = `bleach_poem_${Date.now()}.jpg`;
-                link.href = canvas.toDataURL('image/jpeg', 0.95);
-                link.click();
-            });
+            const link = document.createElement('a');
+            link.download = `bleach_poem_${Date.now()}.jpg`;
+            link.href = mainCanvas.toDataURL('image/jpeg', 0.95);
+            link.click();
         }
     </script>
 </body>
