@@ -890,22 +890,33 @@ SNS投稿は #BPMったー
 
             const lines = (poemInput.value || " ").split('\n');
             const lineSpacing = pSize * 2.0; 
-            const charHeight = pSize * 1.2;
+            const baseCharHeight = pSize * 1.2;
 
             const totalPoemWidth = (lines.length - 1) * lineSpacing;
             const startX = (width / 2) + (totalPoemWidth / 2);
 
-            const maxCharsInLine = Math.max(...lines.map(l => l.length));
-            const totalPoemHeight = maxCharsInLine * charHeight;
-
             const poemAreaTop = 60 + imgBoxHeight;
             const poemAreaBottom = isBoxHidden ? height - 80 : outerBoxY;
             const poemAreaCenterY = poemAreaTop + (poemAreaBottom - poemAreaTop) / 2;
-            const startY = poemAreaCenterY - (totalPoemHeight / 2);
 
+            // 各列ごとに高さをあらかじめ計算して中央揃え配置するためのパス
             lines.forEach((line, lineIndex) => {
                 const currentX = startX - (lineIndex * lineSpacing);
-                let currentY = startY;
+                
+                // 列ごとの全文字の占有高さを計算
+                let totalColHeight = 0;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (['、', '。', 'っ', 'ゃ', 'ゅ', 'ょ', 'ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ'].includes(char)) {
+                        totalColHeight += baseCharHeight * 1.35; // 句読点・小書き文字の後ろは少し広め
+                    } else if (['ー', '―', '—', '-', '–'].includes(char)) {
+                        totalColHeight += baseCharHeight * 0.95; // 伸ばし棒の後ろは詰める
+                    } else {
+                        totalColHeight += baseCharHeight;
+                    }
+                }
+
+                let currentY = poemAreaCenterY - (totalColHeight / 2);
 
                 for (let i = 0; i < line.length; i++) {
                     const char = line[i];
@@ -914,9 +925,14 @@ SNS投稿は #BPMったー
                         // 1. 句読点（、。）は文字の「右上」にしっかりと配置
                         ctx.textBaseline = 'top';
                         ctx.textAlign = 'left';
-                        ctx.fillText(char, currentX + (pSize * 0.55), currentY - (pSize * 0.45));
+                        ctx.fillText(char, currentX + (pSize * 0.65), currentY - (pSize * 0.55));
+                    } else if (['っ', 'ゃ', 'ゅ', 'ょ', 'ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ'].includes(char)) {
+                        // 2. 小さい仮名も句読点と同じ要領で「右上」に配置
+                        ctx.textBaseline = 'top';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(char, currentX + (pSize * 0.65), currentY - (pSize * 0.55));
                     } else if (['ー', '―', '—', '-', '–', '…', '‥', '「', '『', '（', '［', '【', '」', '』', '）', '］', '】'].includes(char)) {
-                        // 2. 伸ばし棒・ダッシュ・三点リーダー・カギ括弧類は中央で回転して正しい縦書き向きに描画
+                        // 3. 伸ばし棒・ダッシュ（──）・三点リーダー・カギ括弧類は中央で90度回転して縦書き向きに描画
                         ctx.save();
                         ctx.translate(currentX + (pSize * 0.5), currentY + (pSize * 0.5));
                         ctx.rotate(Math.PI / 2);
@@ -930,7 +946,15 @@ SNS投稿は #BPMったー
                         ctx.textAlign = 'left';
                         ctx.fillText(char, currentX, currentY);
                     }
-                    currentY += charHeight;
+
+                    // 文字ごとの送り幅の適用（句読点・小書き文字の後は半角空白分あけ、伸ばし棒の後は空白を開けない）
+                    if (['、', '。', 'っ', 'ゃ', 'ゅ', 'ょ', 'ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ'].includes(char)) {
+                        currentY += baseCharHeight * 1.35;
+                    } else if (['ー', '―', '—', '-', '–'].includes(char)) {
+                        currentY += baseCharHeight * 0.95;
+                    } else {
+                        currentY += baseCharHeight;
+                    }
                 }
             });
 
