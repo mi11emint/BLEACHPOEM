@@ -284,7 +284,7 @@ SNS投稿は #BPMったー
                     <button onclick="document.getElementById('imageInput').click()" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition min-h-[34px]">
                         別の画像を選択
                     </button>
-                    <!-- 💡 トリミング画面の「切り抜きを適用」の左横に【カラー/モノクロ】ボタンを追加 -->
+                    <!-- カラー/モノクロ切替ボタン -->
                     <button id="btnColorToggle" onclick="toggleColorMode()" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition min-h-[34px]">
                         脱色中
                     </button>
@@ -299,7 +299,6 @@ SNS投稿は #BPMったー
             スクリーンショット等の大きい画像の場合、正しく切り取れないことがあります。</p>
 
             <div id="cropContainer" class="w-full relative bg-black overflow-hidden border border-zinc-800 rounded flex items-center justify-center touch-none">
-                <!-- 💡 デフォルトはモノクロ（グレースケール）フィルター適用 -->
                 <img id="cropImg" src="" alt="Crop target" class="w-full h-auto block pointer-events-none select-none filter grayscale transition-all duration-200">
                 
                 <div id="cropBox" class="absolute border-2 border-accentRed shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] cursor-move touch-none flex items-center justify-center">
@@ -320,7 +319,7 @@ SNS投稿は #BPMったー
         let croppedDataUrl = null;
         let isPreviewFolded = false;
         let isBoxHidden = false; // 下枠非表示フラグ
-        let isColorMode = false; // 💡 カラーモード切替フラグ（デフォルトfalse＝モノクロ）
+        let isColorMode = false; // カラーモード切替フラグ（デフォルトfalse＝モノクロ）
 
         const poemSamples = [
             `漂白された心と
@@ -399,18 +398,18 @@ SNS投稿は #BPMったー
             await render();
         };
 
-        // 💡 カラー/モノクロ切替ボタンの処理
+        // カラー/モノクロ切替ボタンの処理
         function toggleColorMode() {
             isColorMode = !isColorMode;
             const btn = document.getElementById('btnColorToggle');
             if (isColorMode) {
                 btn.textContent = "彩色中";
                 btn.className = "bg-accentRed hover:bg-rose-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition min-h-[34px] shadow-md";
-                cropImg.classList.remove('filter', 'grayscale'); // モーダルプレビューもカラーに
+                cropImg.classList.remove('filter', 'grayscale');
             } else {
                 btn.textContent = "脱色中";
                 btn.className = "bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition min-h-[34px]";
-                cropImg.classList.add('filter', 'grayscale'); // モーダルプレビューもモノクロに
+                cropImg.classList.add('filter', 'grayscale');
             }
         }
 
@@ -577,7 +576,6 @@ SNS投稿は #BPMったー
                 img.onload = () => {
                     rawImageObj = img;
                     cropImg.src = e.target.result;
-                    // 新規画像選択時はデフォルトのモノクロにリセット
                     isColorMode = false;
                     const btnColor = document.getElementById('btnColorToggle');
                     btnColor.textContent = "脱色中";
@@ -718,7 +716,6 @@ SNS投稿は #BPMったー
             window.addEventListener('touchend', onEnd);
         }
 
-        // 💡 適用時：カラーモードの状態に応じてフィルターを切り替えて描画
         function applyCrop() {
             if (!rawImageObj) return;
 
@@ -734,9 +731,9 @@ SNS投稿は #BPMったー
             tempCanvas.height = sh;
 
             if (isColorMode) {
-                tempCtx.filter = 'none'; // カラー
+                tempCtx.filter = 'none';
             } else {
-                tempCtx.filter = 'grayscale(100%) contrast(120%)'; // モノクロ
+                tempCtx.filter = 'grayscale(100%) contrast(120%)';
             }
             tempCtx.drawImage(rawImageObj, sx, sy, sw, sh, 0, 0, sw, sh);
 
@@ -889,7 +886,6 @@ SNS投稿は #BPMったー
             // --- B. 縦書きポエムテキスト描画 ---
             const pSize = Math.round(parseInt(poemFontSize.value) * scale * 1.5);
             ctx.font = `500 ${pSize}px "Shippori Mincho", "Noto Serif JP", serif`;
-            ctx.textBaseline = 'top';
             ctx.fillStyle = textColor;
 
             const lines = (poemInput.value || " ").split('\n');
@@ -913,15 +909,25 @@ SNS投稿は #BPMったー
 
                 for (let i = 0; i < line.length; i++) {
                     const char = line[i];
+                    
                     if (['、', '。'].includes(char)) {
-                        ctx.fillText(char, currentX + (pSize * 0.4), currentY - (pSize * 0.3));
-                    } else if (['ー', '―', '-'].includes(char)) {
+                        // 1. 句読点（、。）は文字の「右上」にしっかりと配置
+                        ctx.textBaseline = 'top';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(char, currentX + (pSize * 0.55), currentY - (pSize * 0.45));
+                    } else if (['ー', '―', '—', '-', '–', '…', '‥', '「', '『', '（', '［', '【', '」', '』', '）', '］', '】'].includes(char)) {
+                        // 2. 伸ばし棒・ダッシュ・三点リーダー・カギ括弧類は中央で回転して正しい縦書き向きに描画
                         ctx.save();
                         ctx.translate(currentX + (pSize * 0.5), currentY + (pSize * 0.5));
                         ctx.rotate(Math.PI / 2);
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
                         ctx.fillText(char, 0, 0);
                         ctx.restore();
                     } else {
+                        // 通常文字
+                        ctx.textBaseline = 'top';
+                        ctx.textAlign = 'left';
                         ctx.fillText(char, currentX, currentY);
                     }
                     currentY += charHeight;
